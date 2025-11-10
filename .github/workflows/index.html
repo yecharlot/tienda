@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeslaCommerce Pro - E-commerce con Roles</title>
+    <style>
+        :root {
+            --primary: #6a0572;
+            --secondary: #4ecdc4;
+            --accent: #ff6b6b;
+            --gold: #ffd166;
+            --dark: #0f0f1a;
+            --darker: #0a0a15;
+            --light: #e0e0e0;
+            --success: #06d6a0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+        }
+
+        /* Login Modal */
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        .login-content {
+            background: var(--darker);
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid var(--gold);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .role-selector {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .role-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid transparent;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .role-btn.active {
+            border-color: var(--gold);
+            background: rgba(255, 214, 102, 0.1);
+        }
+
+        /* Config Panel */
+        .config-panel {
+            position: fixed;
+            top: 0;
+            left: -400px;
+            width: 400px;
+            height: 100vh;
+            background: var(--darker);
+            border-right: 2px solid var(--gold);
+            transition: left 0.3s;
+            z-index: 2000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .config-panel.active {
+            left: 0;
+        }
+
+        .config-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+
+        .config-toggle.visible {
+            display: block;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary), #4a0366);
+            padding: 15px 0;
+            border-bottom: 3px solid var(--gold);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, var(--gold), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-icon {
+            font-size: 2rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-role {
+            background: var(--gold);
+            color: var(--dark);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: none;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 500px;
+            margin: 0 30px;
+            position: relative;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: var(--light);
+            cursor: pointer;
+            font-size: 1.1rem;
+            position: relative;
+        }
+
+        .cart-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Hero Banner */
+        .hero {
+            background: linear-gradient(135deg, rgba(106, 5, 114, 0.8), rgba(78, 205, 196, 0.8)),
+                        var(--hero-image, url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80'));
+            background-size: cover;
+            background-position: center;
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, var(--gold), white);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Product Grid */
+        .products-grid {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+        }
+
+        .product-card {
+            background: rgba(30, 30, 46, 0.8);
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .product-image {
+            width: 100%;
+            height: 200px;
+            background: var(--darker);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .product-info {
+            padding: 20px;
+        }
+
+        .product-title {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: var(--gold);
+        }
+
+        .product-price {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--secondary);
+            margin-bottom: 15px;
+        }
+
+        .add-to-cart {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .add-to-cart:hover {
+            transform: scale(1.05);
+        }
+
+        /* Cart Sidebar */
+        .cart-sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: var(--darker);
+            border-left: 2px solid var(--gold);
+            transition: right 0.3s;
+            z-index: 1001;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .cart-sidebar.active {
+            right: 0;
+        }
+
+        .cart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .close-cart {
+            background: none;
+            border: none;
+            color: var(--light);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .cart-items {
+            margin-bottom: 20px;
+        }
+
+        .cart-item {
+            display: flex;
+            gap: 15px;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cart-item-image {
+            width: 60px;
+            height: 60px;
+            background: var(--dark);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .cart-item-details {
+            flex: 1;
+        }
+
+        .cart-item-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .cart-item-price {
+            color: var(--secondary);
+        }
+
+        .cart-total {
+            font-size: 1.3rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            color: var(--gold);
+        }
+
+        .checkout-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--success), var(--secondary));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Config Sections */
+        .config-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .config-section h3 {
+            color: var(--gold);
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .color-picker input[type="color"] {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            color: white;
+        }
+
+        .product-editor {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .save-config {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--success), var(--secondary));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        /* Admin Only Message */
+        .admin-only {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .admin-only.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Modal -->
+    <div class="login-modal" id="loginModal">
+        <div class="login-content">
+            <h2 style="margin-bottom: 30px; color: var(--gold);">🚀 Bienvenido a TeslaCommerce</h2>
+            
+            <div class="role-selector">
+                <button class="role-btn active" data-role="user" onclick="selectRole('user')">
+                    👤 Usuario
+                </button>
+                <button class="role-btn" data-role="admin" onclick="selectRole('admin')">
+                    ⚙️ Administrador
+                </button>
+            </div>
+
+            <input type="text" class="login-input" id="loginEmail" placeholder="Correo electrónico" value="usuario@ejemplo.com">
+            <input type="password" class="login-input" id="loginPassword" placeholder="Contraseña" value="password123">
+            
+            <button class="login-btn" onclick="login()">
+                🚀 Iniciar Sesión
+            </button>
+
+            <div style="margin-top: 20px; font-size: 0.9rem; opacity: 0.7;">
+                <p>Demo: Usa cualquier correo y contraseña</p>
+                <p>Selecciona el rol para ver diferentes funcionalidades</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config Toggle (Solo visible para admin) -->
+    <button class="config-toggle" id="configToggle" onclick="toggleConfig()">⚙️</button>
+
+    <!-- Configuration Panel (Solo para admin) -->
+    <div class="config-panel" id="configPanel">
+        <div class="config-section">
+            <h3>🎨 Branding & Colores</h3>
+            
+            <div class="color-picker">
+                <label>Color Primario:</label>
+                <input type="color" id="primaryColor" value="#6a0572">
+            </div>
+            
+            <div class="color-picker">
+                <label>Color Secundario:</label>
+                <input type="color" id="secondaryColor" value="#4ecdc4">
+            </div>
+            
+            <div class="color-picker">
+                <label>Color de Acento:</label>
+                <input type="color" id="accentColor" value="#ff6b6b">
+            </div>
+
+            <input type="text" class="config-input" id="appName" placeholder="Nombre de la App" value="TeslaCommerce">
+            <input type="text" class="config-input" id="appIcon" placeholder="Icono (emoji o URL)" value="⚡">
+            <input type="text" class="config-input" id="pageTitle" placeholder="Título de la Página" value="TeslaCommerce Pro">
+        </div>
+
+        <div class="config-section">
+            <h3>🖼️ Hero Banner</h3>
+            <input type="text" class="config-input" id="heroTitle" placeholder="Título del Hero" value="Tecnología que Transforma">
+            <input type="text" class="config-input" id="heroSubtitle" placeholder="Subtítulo del Hero" value="Productos seleccionados usando principios de eficiencia Tesla">
+            <input type="text" class="config-input" id="heroImage" placeholder="URL de imagen del Hero">
+        </div>
+
+        <div class="config-section">
+            <h3>📦 Gestor de Productos</h3>
+            <div id="productEditor">
+                <!-- Los productos se editarán aquí -->
+            </div>
+            <button class="add-to-cart" onclick="addNewProduct()" style="margin-top: 10px;">+ Agregar Producto</button>
+        </div>
+
+        <div class="config-section">
+            <h3>💾 Configuración Global</h3>
+            <input type="text" class="config-input" id="apiBaseUrl" placeholder="URL Base de API" value="https://api.teslacommerce.com/v1">
+            <input type="text" class="config-input" id="currency" placeholder="Símbolo de Moneda" value="$">
+            
+            <button class="save-config" onclick="saveConfiguration()">💾 Guardar Configuración</button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header" id="mainHeader" style="display: none;">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon" id="logoIcon">⚡</span>
+                <span id="appNameDisplay">TeslaCommerce</span>
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" placeholder="🔍 Buscar productos..." id="searchInput">
+            </div>
+
+            <div class="user-actions">
+                <div class="user-info">
+                    <span id="userEmail">usuario@ejemplo.com</span>
+                    <span class="user-role" id="userRole">Usuario</span>
+                    <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+                </div>
+                <button class="action-btn" onclick="toggleCart()">
+                    🛒 Carrito
+                    <span class="cart-count" id="cartCount">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Banner -->
+    <section class="hero" id="heroSection" style="display: none;">
+        <h1 id="heroTitleDisplay">Tecnología que Transforma</h1>
+        <p id="heroSubtitleDisplay" style="font-size: 1.2rem; margin-bottom: 30px;">
+            Productos seleccionados usando principios de eficiencia Tesla
+        </p>
+        <button class="add-to-cart" style="max-width: 200px; margin: 0 auto;">
+            Descubrir Productos
+        </button>
+    </section>
+
+    <!-- Product Grid -->
+    <section class="products-grid" id="productsGrid" style="display: none;">
+        <!-- Los productos se cargan dinámicamente -->
+    </section>
+
+    <!-- Admin Only Message -->
+    <div class="admin-only" id="adminOnlyMessage">
+        <div style="font-size: 4rem; margin-bottom: 20px;">⚙️</div>
+        <h2>Panel de Administración</h2>
+        <p style="margin: 20px 0; opacity: 0.8;">
+            Esta área es solo para administradores. Los usuarios normales pueden ver el catálogo y realizar pedidos.
+        </p>
+        <button class="login-btn" onclick="switchToUserView()" style="max-width: 200px;">
+            👤 Ver como Usuario
+        </button>
+    </div>
+
+    <!-- Cart Sidebar -->
+    <div class="cart-sidebar" id="cartSidebar">
+        <div class="cart-header">
+            <h3>🛒 Tu Carrito</h3>
+            <button class="close-cart" onclick="toggleCart()">×</button>
+        </div>
+
+        <div class="cart-items" id="cartItems">
+            <!-- Los items del carrito se cargan aquí -->
+        </div>
+
+        <div class="cart-total" id="cartTotal">
+            Total: $0.00
+        </div>
+
+        <button class="checkout-btn" onclick="checkout()">
+            🚀 Proceder al Pago
+        </button>
+    </div>
+
+    <script>
+        // Sistema de Autenticación y Roles
+        class AuthManager {
+            constructor() {
+                this.currentUser = null;
+                this.checkAuth();
+            }
+
+            checkAuth() {
+                const savedUser = localStorage.getItem('teslacommerce_user');
+                if (savedUser) {
+                    this.currentUser = JSON.parse(savedUser);
+                    this.handleAuthSuccess();
+                } else {
+                    this.showLogin();
+                }
+            }
+
+            login(email, password, role) {
+                // En una aplicación real, aquí haríamos una petición al backend
+                this.currentUser = {
+                    email: email,
+                    role: role,
+                    name: email.split('@')[0],
+                    loginTime: new Date().toISOString()
+                };
+
+                localStorage.setItem('teslacommerce_user', JSON.stringify(this.currentUser));
+                this.handleAuthSuccess();
+            }
+
+            logout() {
+                this.currentUser = null;
+                localStorage.removeItem('teslacommerce_user');
+                this.showLogin();
+            }
+
+            handleAuthSuccess() {
+                this.hideLogin();
+                this.updateUIForRole();
+                
+                if (this.currentUser.role === 'admin') {
+                    this.showAdminInterface();
+                } else {
+                    this.showUserInterface();
+                }
+            }
+
+            showLogin() {
+                document.getElementById('loginModal').style.display = 'flex';
+                document.getElementById('mainHeader').style.display = 'none';
+                document.getElementById('heroSection').style.display = 'none';
+                document.getElementById('productsGrid').style.display = 'none';
+                document.getElementById('adminOnlyMessage').classList.remove('visible');
+            }
+
+            hideLogin() {
+                document.getElementById('loginModal').style.display = 'none';
+            }
+
+            updateUIForRole() {
+                document.getElementById('userEmail').textContent = this.currentUser.email;
+                document.getElementById('userRole').textContent = this.currentUser.role === 'admin' ? 'Administrador' : 'Usuario';
+                
+                // Mostrar/ocultar botón de configuración según el rol
+                const configToggle = document.getElementById('configToggle');
+                if (this.currentUser.role === 'admin') {
+                    configToggle.classList.add('visible');
+                } else {
+                    configToggle.classList.remove('visible');
+                    document.getElementById('configPanel').classList.remove('active');
+                }
+            }
+
+            showAdminInterface() {
+                document.getElementById('mainHeader').style.display = 'block';
+                document.getElementById('adminOnlyMessage').classList.add('visible');
+                document.getElementById('heroSection').style.display = 'none';
+                document.getElementById('productsGrid').style.display = 'none';
+                
+                // Cargar configuración para el admin
+                if (window.configManager) {
+                    window.configManager.loadConfiguration();
+                }
+            }
+
+            showUserInterface() {
+                document.getElementById('mainHeader').style.display = 'block';
+                document.getElementById('heroSection').style.display = 'block';
+                document.getElementById('productsGrid').style.display = 'grid';
+                document.getElementById('adminOnlyMessage').classList.remove('visible');
+                
+                // Cargar productos para el usuario
+                if (window.productManager) {
+                    window.productManager.renderProducts();
+                }
+            }
+
+            isAdmin() {
+                return this.currentUser && this.currentUser.role === 'admin';
+            }
+
+            isUser() {
+                return this.currentUser && this.currentUser.role === 'user';
+            }
+        }
+
+        // Sistema de Configuración (solo para admin)
+        class ConfigManager {
+            constructor() {
+                this.defaultConfig = {
+                    colors: {
+                        primary: '#6a0572',
+                        secondary: '#4ecdc4',
+                        accent: '#ff6b6b',
+                        gold: '#ffd166',
+                        dark: '#0f0f1a',
+                        darker: '#0a0a15',
+                        light: '#e0e0e0',
+                        success: '#06d6a0'
+                    },
+                    branding: {
+                        appName: 'TeslaCommerce',
+                        appIcon: '⚡',
+                        pageTitle: 'TeslaCommerce Pro',
+                        heroTitle: 'Tecnología que Transforma',
+                        heroSubtitle: 'Productos seleccionados usando principios de eficiencia Tesla',
+                        heroImage: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80'
+                    },
+                    products: [],
+                    api: {
+                        baseUrl: 'https://api.teslacommerce.com/v1',
+                        currency: '$'
+                    }
+                };
+                
+                this.config = { ...this.defaultConfig };
+                this.loadConfiguration();
+            }
+
+            loadConfiguration() {
+                console.log('🔧 Cargando configuración...');
+                
+                const savedConfig = localStorage.getItem('teslacommerce_config');
+                if (savedConfig) {
+                    try {
+                        const parsedConfig = JSON.parse(savedConfig);
+                        this.config = { ...this.defaultConfig, ...parsedConfig };
+                        console.log('✅ Configuración cargada:', this.config);
+                    } catch (error) {
+                        console.error('❌ Error al cargar configuración:', error);
+                        this.config = { ...this.defaultConfig };
+                    }
+                } else {
+                    console.log('ℹ️ No hay configuración guardada, usando valores por defecto');
+                    this.config = { ...this.defaultConfig };
+                }
+                
+                this.applyConfiguration();
+            }
+
+            saveConfiguration() {
+                console.log('💾 Intentando guardar configuración...');
+                
+                if (!window.authManager.isAdmin()) {
+                    alert('❌ Solo los administradores pueden guardar la configuración');
+                    return;
+                }
+                
+                try {
+                    this.updateConfigFromUI();
+                    localStorage.setItem('teslacommerce_config', JSON.stringify(this.config));
+                    this.applyConfiguration();
+                    console.log('✅ Configuración guardada exitosamente:', this.config);
+                    alert('✅ Configuración guardada exitosamente!');
+                } catch (error) {
+                    console.error('❌ Error al guardar configuración:', error);
+                    alert('❌ Error al guardar la configuración: ' + error.message);
+                }
+            }
+
+            updateConfigFromUI() {
+                console.log('🔄 Actualizando configuración desde UI...');
+                
+                // Colores
+                this.config.colors.primary = document.getElementById('primaryColor').value;
+                this.config.colors.secondary = document.getElementById('secondaryColor').value;
+                this.config.colors.accent = document.getElementById('accentColor').value;
+
+                // Branding
+                this.config.branding.appName = document.getElementById('appName').value;
+                this.config.branding.appIcon = document.getElementById('appIcon').value;
+                this.config.branding.pageTitle = document.getElementById('pageTitle').value;
+                this.config.branding.heroTitle = document.getElementById('heroTitle').value;
+                this.config.branding.heroSubtitle = document.getElementById('heroSubtitle').value;
+                this.config.branding.heroImage = document.getElementById('heroImage').value;
+
+                // API
+                this.config.api.baseUrl = document.getElementById('apiBaseUrl').value;
+                this.config.api.currency = document.getElementById('currency').value;
+
+                console.log('📝 Configuración actualizada:', this.config);
+            }
+
+            applyConfiguration() {
+                console.log('🎨 Aplicando configuración...');
+                
+                if (!window.authManager.isAdmin()) {
+                    console.log('ℹ️ No es admin, no se aplica configuración');
+                    return;
+                }
+                
+                try {
+                    // Aplicar colores CSS
+                    const root = document.documentElement;
+                    Object.entries(this.config.colors).forEach(([key, value]) => {
+                        root.style.setProperty(`--${key}`, value);
+                    });
+
+                    // Aplicar branding
+                    document.getElementById('appNameDisplay').textContent = this.config.branding.appName;
+                    document.getElementById('logoIcon').textContent = this.config.branding.appIcon;
+                    document.title = this.config.branding.pageTitle;
+                    document.getElementById('heroTitleDisplay').textContent = this.config.branding.heroTitle;
+                    document.getElementById('heroSubtitleDisplay').textContent = this.config.branding.heroSubtitle;
+                    
+                    if (this.config.branding.heroImage) {
+                        document.getElementById('heroSection').style.setProperty('--hero-image', `url('${this.config.branding.heroImage}')`);
+                    }
+
+                    this.updateConfigUI();
+                    console.log('✅ Configuración aplicada exitosamente');
+                } catch (error) {
+                    console.error('❌ Error al aplicar configuración:', error);
+                }
+            }
+
+            updateConfigUI() {
+                console.log('📱 Actualizando UI de configuración...');
+                
+                if (!window.authManager.isAdmin()) {
+                    return;
+                }
+                
+                try {
+                    document.getElementById('primaryColor').value = this.config.colors.primary;
+                    document.getElementById('secondaryColor').value = this.config.colors.secondary;
+                    document.getElementById('accentColor').value = this.config.colors.accent;
+                    document.getElementById('appName').value = this.config.branding.appName;
+                    document.getElementById('appIcon').value = this.config.branding.appIcon;
+                    document.getElementById('pageTitle').value = this.config.branding.pageTitle;
+                    document.getElementById('heroTitle').value = this.config.branding.heroTitle;
+                    document.getElementById('heroSubtitle').value = this.config.branding.heroSubtitle;
+                    document.getElementById('heroImage').value = this.config.branding.heroImage;
+                    document.getElementById('apiBaseUrl').value = this.config.api.baseUrl;
+                    document.getElementById('currency').value = this.config.api.currency;
+                    
+                    console.log('✅ UI de configuración actualizada');
+                } catch (error) {
+                    console.error('❌ Error al actualizar UI de configuración:', error);
+                }
+            }
+        }
+
+        // Sistema de Productos
+        class ProductManager {
+            constructor() {
+                this.products = [];
+                this.loadProducts();
+            }
+
+            loadProducts() {
+                const savedProducts = localStorage.getItem('teslacommerce_products');
+                if (savedProducts) {
+                    this.products = JSON.parse(savedProducts);
+                console.log('📦 Productos cargados:', this.products.length);
+                } else {
+                    this.loadDemoProducts();
+                }
+                
+                if (window.authManager && window.authManager.isUser()) {
+                    this.renderProducts();
+                }
+                
+                if (window.authManager && window.authManager.isAdmin()) {
+                    this.renderProductEditor();
+                }
+            }
+
+            loadDemoProducts() {
+                this.products = [
+                    {
+                        id: 1,
+                        name: "Laptop Tesla Pro",
+                        price: 1299.99,
+                        image: "💻",
+                        description: "Laptop de alto rendimiento con arquitectura Tesla",
+                        category: "tecnologia",
+                        stock: 15
+                    },
+                    {
+                        id: 2,
+                        name: "Smartphone Resonance",
+                        price: 799.99,
+                        image: "📱",
+                        description: "Teléfono con procesamiento armónico Tesla",
+                        category: "tecnologia",
+                        stock: 25
+                    },
+                    {
+                        id: 3,
+                        name: "Tablet Fibonacci",
+                        price: 599.99,
+                        image: "📟",
+                        description: "Tablet con pantalla de proporción áurea",
+                        category: "tecnologia",
+                        stock: 10
+                    }
+                ];
+                this.saveProducts();
+            }
+
+            saveProducts() {
+                localStorage.setItem('teslacommerce_products', JSON.stringify(this.products));
+            }
+
+            addProduct(product) {
+                if (!window.authManager.isAdmin()) return;
+                
+                product.id = Date.now();
+                this.products.push(product);
+                this.saveProducts();
+                this.renderProductEditor();
+            }
+
+            updateProduct(id, updates) {
+                if (!window.authManager.isAdmin()) return;
+                
+                const index = this.products.findIndex(p => p.id === id);
+                if (index !== -1) {
+                    this.products[index] = { ...this.products[index], ...updates };
+                    this.saveProducts();
+                    this.renderProductEditor();
+                }
+            }
+
+            deleteProduct(id) {
+                if (!window.authManager.isAdmin()) return;
+                
+                this.products = this.products.filter(p => p.id !== id);
+                this.saveProducts();
+                this.renderProductEditor();
+            }
+
+            renderProducts() {
+                const grid = document.getElementById('productsGrid');
+                if (!grid) return;
+                
+                grid.innerHTML = '';
+
+                this.products.forEach(product => {
+                    const productCard = this.createProductCard(product);
+                    grid.appendChild(productCard);
+                });
+            }
+
+            createProductCard(product) {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.innerHTML = `
+                    <div class="product-image" style="${product.image.startsWith('http') ? `background-image: url('${product.image}')` : ''}">
+                        ${!product.image.startsWith('http') ? product.image : ''}
+                    </div>
+                    <div class="product-info">
+                        <div class="product-title">${product.name}</div>
+                        <div class="product-description" style="font-size: 0.9rem; opacity: 0.7; margin-bottom: 10px;">
+                            ${product.description}
+                        </div>
+                        <div class="product-price">${window.configManager.config.api.currency}${product.price.toFixed(2)}</div>
+                        <div style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 10px;">
+                            📦 ${product.stock} en stock
+                        </div>
+                        <button class="add-to-cart" onclick="addToCart(${product.id})">
+                            🛒 Agregar al Carrito
+                        </button>
+                    </div>
+                `;
+                return card;
+            }
+
+            renderProductEditor() {
+                if (!window.authManager.isAdmin()) return;
+                
+                const editor = document.getElementById('productEditor');
+                if (!editor) return;
+                
+                editor.innerHTML = '';
+
+                this.products.forEach(product => {
+                    const productEditor = this.createProductEditor(product);
+                    editor.appendChild(productEditor);
+                });
+            }
+
+            createProductEditor(product) {
+                const editor = document.createElement('div');
+                editor.className = 'product-editor';
+                editor.innerHTML = `
+                    <h4>Editar: ${product.name}</h4>
+                    <input type="text" class="config-input" value="${product.name}" 
+                           onchange="window.productManager.updateProduct(${product.id}, {name: this.value})" 
+                           placeholder="Nombre del producto">
+                    <input type="number" class="config-input" value="${product.price}" 
+                           onchange="window.productManager.updateProduct(${product.id}, {price: parseFloat(this.value)})" 
+                           placeholder="Precio" step="0.01">
+                    <input type="text" class="config-input" value="${product.image}" 
+                           onchange="window.productManager.updateProduct(${product.id}, {image: this.value})" 
+                           placeholder="Imagen (emoji o URL)">
+                    <input type="text" class="config-input" value="${product.description}" 
+                           onchange="window.productManager.updateProduct(${product.id}, {description: this.value})" 
+                           placeholder="Descripción">
+                    <input type="number" class="config-input" value="${product.stock}" 
+                           onchange="window.productManager.updateProduct(${product.id}, {stock: parseInt(this.value)})" 
+                           placeholder="Stock">
+                    <button class="add-to-cart" onclick="window.productManager.deleteProduct(${product.id})" 
+                            style="background: var(--accent); margin-top: 10px;">
+                        🗑️ Eliminar Producto
+                    </button>
+                `;
+                return editor;
+            }
+        }
+
+        // Sistema del Carrito
+        class CartManager {
+            constructor() {
+                this.items = [];
+                this.loadCart();
+            }
+
+            loadCart() {
+                const savedCart = localStorage.getItem('teslacommerce_cart');
+                if (savedCart) {
+                    this.items = JSON.parse(savedCart);
+                    this.updateCartUI();
+                }
+            }
+
+            saveCart() {
+                localStorage.setItem('teslacommerce_cart', JSON.stringify(this.items));
+            }
+
+            addItem(productId, quantity = 1) {
+                if (!window.authManager.isUser()) {
+                    alert('❌ Solo los usuarios pueden agregar productos al carrito');
+                    return;
+                }
+
+                const product = window.productManager.products.find(p => p.id === productId);
+                if (!product) return;
+
+                const existingItem = this.items.find(item => item.productId === productId);
+                
+                if (existingItem) {
+                    existingItem.quantity += quantity;
+                } else {
+                    this.items.push({
+                        id: Date.now(),
+                        productId: product.id,
+                        name: product.name,
+                        price: product.price,
+                        image: product.image,
+                        quantity: quantity
+                    });
+                }
+
+                this.saveCart();
+                this.updateCartUI();
+            }
+
+            removeItem(itemId) {
+                this.items = this.items.filter(item => item.id !== itemId);
+                this.saveCart();
+                this.updateCartUI();
+            }
+
+            updateQuantity(itemId, newQuantity) {
+                if (newQuantity <= 0) {
+                    this.removeItem(itemId);
+                    return;
+                }
+
+                const item = this.items.find(item => item.id === itemId);
+                if (item) {
+                    item.quantity = newQuantity;
+                    this.saveCart();
+                    this.updateCartUI();
+                }
+            }
+
+            getTotal() {
+                return this.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+            }
+
+            getItemCount() {
+                return this.items.reduce((count, item) => count + item.quantity, 0);
+            }
+
+            updateCartUI() {
+                document.getElementById('cartCount').textContent = this.getItemCount();
+
+                const cartItems = document.getElementById('cartItems');
+                const cartTotal = document.getElementById('cartTotal');
+
+                if (this.items.length === 0) {
+                    cartItems.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            <div style="font-size: 3rem; margin-bottom: 20px;">🛒</div>
+                            <p>Tu carrito está vacío</p>
+                        </div>
+                    `;
+                } else {
+                    cartItems.innerHTML = this.items.map(item => `
+                        <div class="cart-item">
+                            <div class="cart-item-image" style="${item.image.startsWith('http') ? `background-image: url('${item.image}')` : ''}">
+                                ${!item.image.startsWith('http') ? item.image : ''}
+                            </div>
+                            <div class="cart-item-details">
+                                <div class="cart-item-title">${item.name}</div>
+                                <div class="cart-item-price">${window.configManager.config.api.currency}${item.price.toFixed(2)}</div>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                    <button onclick="window.cartManager.updateQuantity(${item.id}, ${item.quantity - 1})" 
+                                            style="background: none; border: 1px solid #444; color: white; width: 25px; height: 25px; border-radius: 50%;">-</button>
+                                    <span>${item.quantity}</span>
+                                    <button onclick="window.cartManager.updateQuantity(${item.id}, ${item.quantity + 1})" 
+                                            style="background: none; border: 1px solid #444; color: white; width: 25px; height: 25px; border-radius: 50%;">+</button>
+                                    <button onclick="window.cartManager.removeItem(${item.id})" 
+                                            style="background: none; border: none; color: var(--accent); margin-left: auto;">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                cartTotal.textContent = `Total: ${window.configManager.config.api.currency}${this.getTotal().toFixed(2)}`;
+            }
+
+            checkout() {
+                if (!window.authManager.isUser()) {
+                    alert('❌ Solo los usuarios pueden realizar pedidos');
+                    return;
+                }
+
+                if (this.items.length === 0) return;
+                
+                alert(`🎉 ¡Orden procesada! Total: ${window.configManager.config.api.currency}${this.getTotal().toFixed(2)}`);
+                this.items = [];
+                this.saveCart();
+                this.updateCartUI();
+                toggleCart();
+            }
+        }
+
+        // Variables globales
+        let selectedRole = 'user';
+
+        // Funciones globales
+        function selectRole(role) {
+            selectedRole = role;
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.role === role);
+            });
+        }
+
+        function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+
+            window.authManager.login(email, password, selectedRole);
+        }
+
+        function logout() {
+            window.authManager.logout();
+        }
+
+        function toggleConfig() {
+            if (!window.authManager.isAdmin()) {
+                alert('❌ Solo los administradores pueden acceder a la configuración');
+                return;
+            }
+            document.getElementById('configPanel').classList.toggle('active');
+        }
+
+        function toggleCart() {
+            document.getElementById('cartSidebar').classList.toggle('active');
+        }
+
+        function addToCart(productId) {
+            window.cartManager.addItem(productId, 1);
+        }
+
+        function checkout() {
+            window.cartManager.checkout();
+        }
+
+        function saveConfiguration() {
+            console.log('💾 Guardar configuración llamado');
+            window.configManager.saveConfiguration();
+        }
+
+        function addNewProduct() {
+            if (!window.authManager.isAdmin()) {
+                alert('❌ Solo los administradores pueden agregar productos');
+                return;
+            }
+            
+            window.productManager.addProduct({
+                name: "Nuevo Producto",
+                price: 99.99,
+                image: "📦",
+                description: "Descripción del producto",
+                category: "general",
+                stock: 10
+            });
+        }
+
+        function switchToUserView() {
+            window.authManager.showUserInterface();
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Inicializando TeslaCommerce...');
+            
+            // Crear instancias globales
+            window.authManager = new AuthManager();
+            window.configManager = new ConfigManager();
+            window.productManager = new ProductManager();
+            window.cartManager = new CartManager();
+
+            console.log('✅ TeslaCommerce inicializado correctamente');
+        });
+    </script>
+</body>
+</html>
