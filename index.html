@@ -1030,13 +1030,19 @@
             <h3>🔄 Configuración de Sincronización</h3>
             <input type="text" class="config-input" id="gistUrl" placeholder="URL del Gist" 
                    value="https://gist.github.com/yecharlot/4136c2c9f41deedd69f5dba79b2e23f3">
-            <input type="password" class="config-input" id="githubToken" placeholder="Token de GitHub" 
-                   value="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">
-            <button class="add-to-cart" onclick="setupGistSync()" style="margin-top: 10px;">
-                💾 Guardar Configuración Sync
-            </button>
+            <input type="password" class="config-input" id="githubToken" placeholder="Token de GitHub">
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="add-to-cart" onclick="testGistConnection()" style="flex: 1;">
+                    🔍 Probar Conexión
+                </button>
+                <button class="add-to-cart" onclick="setupGistSync()" style="flex: 1;">
+                    💾 Guardar Configuración
+                </button>
+            </div>
+            
             <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 10px;">
-                Estado: <span id="gistConfigStatus">Conectado</span>
+                Estado: <span id="gistConfigStatus">No configurado</span>
             </p>
         </div>
 
@@ -1173,7 +1179,7 @@
         class GistSyncManager {
             constructor() {
                 this.gistUrl = localStorage.getItem('teslacommerce_gist_url') || 'https://gist.github.com/yecharlot/4136c2c9f41deedd69f5dba79b2e23f3';
-                this.githubToken = localStorage.getItem('teslacommerce_github_token') || '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';
+                this.githubToken = localStorage.getItem('teslacommerce_github_token') || '';
                 this.gistId = this.extractGistId(this.gistUrl);
                 this.syncInterval = null;
                 this.lastSync = Date.now();
@@ -1260,11 +1266,19 @@
             async syncWithGist() {
                 if (!this.githubToken) {
                     this.showNotification('Sincronización', 'Se necesita token de GitHub para guardar cambios', 'warning');
+                    this.updateSyncStatus('⚠️ Token Requerido', 'error');
                     return;
                 }
 
                 try {
-                    // Primero, obtener el Gist actual para tener el SHA
+                    // Preparar datos para enviar
+                    const dataToSync = {
+                        ...window.dbManager.data,
+                        last_sync: new Date().toISOString(),
+                        sync_source: window.authManager?.currentUser?.email || 'anonymous'
+                    };
+
+                    // Primero obtener el Gist actual para tener el SHA correcto
                     const getResponse = await fetch(`https://api.github.com/gists/${this.gistId}`, {
                         headers: {
                             'Authorization': `token ${this.githubToken}`,
@@ -1272,23 +1286,13 @@
                         }
                     });
                     
-                    if (!getResponse.ok) throw new Error('No se pudo obtener Gist');
+                    if (!getResponse.ok) {
+                        throw new Error(`Error obteniendo Gist: ${getResponse.status}`);
+                    }
                     
                     const currentGist = await getResponse.json();
-                    const currentFile = Object.keys(currentGist.files)[0];
+                    const currentFilename = Object.keys(currentGist.files)[0];
                     
-                    // Preparar datos para enviar (incluyendo cambios pendientes)
-                    const dataToSync = {
-                        ...window.dbManager.data,
-                        last_sync: new Date().toISOString(),
-                        sync_source: window.authManager?.currentUser?.email || 'anonymous'
-                    };
-
-                    // Aplicar cambios pendientes al data
-                    this.pendingChanges.forEach(change => {
-                        this.applyChangeToData(dataToSync, change);
-                    });
-
                     // Actualizar el Gist
                     const updateResponse = await fetch(`https://api.github.com/gists/${this.gistId}`, {
                         method: 'PATCH',
@@ -1300,7 +1304,7 @@
                         body: JSON.stringify({
                             description: `TeslaCommerce Sync - ${new Date().toLocaleString()}`,
                             files: {
-                                [currentFile]: {
+                                [currentFilename]: {
                                     content: JSON.stringify(dataToSync, null, 2)
                                 }
                             }
@@ -1308,20 +1312,28 @@
                     });
 
                     if (updateResponse.ok) {
-                        // Limpiar cambios pendientes
+                        // Limpiar cambios pendientes después de éxito
                         this.pendingChanges = [];
-                        
                         this.lastSync = Date.now();
                         this.updateSyncStatus('💾 Sincronizado', 'success');
                         this.updateSyncDetails();
+                        
+                        this.showNotification('Sincronización', 'Datos guardados en Gist exitosamente', 'success');
                     } else {
-                        throw new Error('Error actualizando Gist');
+                        const errorText = await updateResponse.text();
+                        throw new Error(`Error actualizando Gist: ${updateResponse.status} - ${errorText}`);
                     }
 
                 } catch (error) {
                     console.error('Error en sync:', error);
                     this.updateSyncStatus('⚠️ Error de sync', 'error');
+                    this.showNotification('Error de Sincronización', error.message, 'error');
                 }
+            }
+
+            async forceSyncWithGist() {
+                this.updateSyncStatus('🔄 Sincronizando...', 'syncing');
+                await this.syncWithGist();
             }
 
             applyChangeToData(data, change) {
@@ -1402,7 +1414,7 @@
                 
                 // Sincronizar inmediatamente para cambios importantes
                 if (change.type.includes('ORDER') || change.type.includes('PRODUCT_STOCK')) {
-                    this.syncWithGist();
+                    setTimeout(() => this.syncWithGist(), 1000);
                 }
             }
 
@@ -1506,6 +1518,39 @@
                 
                 document.getElementById('gistStatus').textContent = 
                     this.githubToken ? 'Lectura/Escritura' : 'Solo Lectura';
+            }
+
+            mergeData(serverData, localData) {
+                if (!localData) return serverData;
+                
+                const merged = { ...serverData };
+                
+                // Fusionar productos (preferir servidor pero mantener stock actualizado)
+                const allProducts = [...serverData.products];
+                localData.products.forEach(localProduct => {
+                    const existingIndex = allProducts.findIndex(p => p.id === localProduct.id);
+                    if (existingIndex === -1) {
+                        allProducts.push(localProduct);
+                    } else {
+                        // Mantener el stock más reciente
+                        allProducts[existingIndex].stock = localProduct.stock;
+                    }
+                });
+                merged.products = allProducts;
+                
+                // Fusionar usuarios
+                const allUsers = [...serverData.users];
+                localData.users.forEach(localUser => {
+                    if (!allUsers.find(u => u.email === localUser.email)) {
+                        allUsers.push(localUser);
+                    }
+                });
+                merged.users = allUsers;
+                
+                // Fusionar órdenes (preferir servidor)
+                merged.orders = serverData.orders || localData.orders || [];
+                
+                return merged;
             }
         }
 
@@ -2932,7 +2977,8 @@
             const panel = document.getElementById('notificationsPanel');
             panel.classList.toggle('active');
             
-            if (panel.classList.contains('active')) {
+            if (panel.classList.contains('active') && window.gistSyncManager) {
+                window.gistSyncManager.updateNotificationsDisplay();
                 markAllNotificationsAsRead();
             }
         }
@@ -2941,8 +2987,8 @@
             const panel = document.getElementById('syncDetailsPanel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
             
-            if (panel.style.display === 'block') {
-                updateSyncDetails();
+            if (panel.style.display === 'block' && window.gistSyncManager) {
+                window.gistSyncManager.updateSyncDetails();
             }
         }
 
@@ -2952,7 +2998,9 @@
             if (notification) {
                 notification.read = true;
                 localStorage.setItem('teslacommerce_notifications', JSON.stringify(notifications));
-                window.gistSyncManager.updateNotificationsDisplay();
+                if (window.gistSyncManager) {
+                    window.gistSyncManager.updateNotificationsDisplay();
+                }
             }
         }
 
@@ -2960,7 +3008,9 @@
             const notifications = JSON.parse(localStorage.getItem('teslacommerce_notifications') || '[]');
             notifications.forEach(notif => notif.read = true);
             localStorage.setItem('teslacommerce_notifications', JSON.stringify(notifications));
-            window.gistSyncManager.updateNotificationsDisplay();
+            if (window.gistSyncManager) {
+                window.gistSyncManager.updateNotificationsDisplay();
+            }
         }
 
         function updateSyncDetails() {
@@ -2971,7 +3021,41 @@
 
         function forceSync() {
             if (window.gistSyncManager) {
-                window.gistSyncManager.syncWithGist();
+                window.gistSyncManager.forceSyncWithGist();
+            }
+        }
+
+        async function testGistConnection() {
+            const gistUrl = document.getElementById('gistUrl').value;
+            const githubToken = document.getElementById('githubToken').value;
+            
+            if (!gistUrl || !githubToken) {
+                alert('Por favor completa ambos campos');
+                return;
+            }
+            
+            try {
+                const gistId = gistUrl.match(/gist\.github\.com\/(?:[^\/]+\/)?([a-f0-9]+)/)?.[1];
+                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: {
+                        'Authorization': `token ${githubToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (response.ok) {
+                    alert('✅ Conexión al Gist exitosa');
+                    document.getElementById('gistConfigStatus').textContent = 'Conexión exitosa';
+                    document.getElementById('gistConfigStatus').style.color = 'var(--success)';
+                } else {
+                    alert('❌ Error de conexión: ' + response.status);
+                    document.getElementById('gistConfigStatus').textContent = 'Error de conexión';
+                    document.getElementById('gistConfigStatus').style.color = 'var(--accent)';
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+                document.getElementById('gistConfigStatus').textContent = 'Error de conexión';
+                document.getElementById('gistConfigStatus').style.color = 'var(--accent)';
             }
         }
 
@@ -2990,16 +3074,27 @@
                 return;
             }
 
+            // Validar token básico
+            if (!githubToken) {
+                alert('Por favor ingresa un token de GitHub válido');
+                return;
+            }
+
             // Guardar configuración
             localStorage.setItem('teslacommerce_gist_url', gistUrl);
-            if (githubToken) {
-                localStorage.setItem('teslacommerce_github_token', githubToken);
-            }
+            localStorage.setItem('teslacommerce_github_token', githubToken);
             
             // Reiniciar sync manager
             window.gistSyncManager = new GistSyncManager();
             
             alert('✅ Configuración de sincronización guardada');
+            
+            // Probar sincronización inmediata
+            setTimeout(() => {
+                if (window.gistSyncManager) {
+                    window.gistSyncManager.forceSyncWithGist();
+                }
+            }, 1000);
         }
 
         function updateOrderStatus(orderId, newStatus) {
@@ -3017,7 +3112,9 @@
             const success = window.dbManager.updateOrderStatus(orderId, newStatus, adminNote);
             
             if (success) {
-                window.gistSyncManager.showNotification('Pedido Actualizado', `Pedido #${orderId} actualizado a "${newStatus}"`, 'success');
+                if (window.gistSyncManager) {
+                    window.gistSyncManager.showNotification('Pedido Actualizado', `Pedido #${orderId} actualizado a "${newStatus}"`, 'success');
+                }
                 
                 // Recargar la vista de pedidos
                 if (window.ordersManager) {
