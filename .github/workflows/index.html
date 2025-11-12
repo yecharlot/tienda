@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1176,10 +1175,11 @@
                         window.dbManager.data = this.mergeData(remoteData, window.dbManager.data);
                         window.dbManager.saveToLocalStorage();
                         
-                        if (remoteData.config && remoteData.config.github_token) {
-                            this.githubToken = remoteData.config.github_token;
-                            localStorage.setItem('teslacommerce_github_token', this.githubToken);
-                            this.updateTokenInUI();
+                        // PROTEGER EL TOKEN - No sobrescribir si ya tenemos uno local
+                        if (this.githubToken && (!remoteData.config || !remoteData.config.github_token)) {
+                            if (!window.dbManager.data.config) window.dbManager.data.config = {};
+                            window.dbManager.data.config.github_token = this.githubToken;
+                            window.dbManager.saveToLocalStorage();
                         }
                         
                         if (window.productManager) window.productManager.loadProducts();
@@ -1221,6 +1221,7 @@
                         sync_source: window.authManager?.currentUser?.email || 'anonymous'
                     };
 
+                    // PROTEGER EL TOKEN - Siempre incluir el token actual en la sincronización
                     if (!dataToSync.config) dataToSync.config = {};
                     dataToSync.config.github_token = this.githubToken;
 
@@ -1295,6 +1296,10 @@
                         data.products = data.products.filter(p => p.id !== change.data.id);
                         break;
                     case 'UPDATE_CONFIG':
+                        // PROTEGER EL TOKEN - No permitir actualizar el token con valores vacíos
+                        if (change.data.key === 'github_token' && (!change.data.value || change.data.value.trim() === '')) {
+                            return;
+                        }
                         data.config[change.data.key] = change.data.value;
                         break;
                     case 'ADD_ORDER':
@@ -1365,7 +1370,9 @@
 
             updateTokenInUI() {
                 const tokenInput = document.getElementById('githubToken');
-                if (tokenInput && this.githubToken) tokenInput.value = this.githubToken;
+                if (tokenInput && this.githubToken) {
+                    tokenInput.value = this.githubToken;
+                }
             }
 
             showNotification(title, message, type = 'info') {
@@ -1432,30 +1439,103 @@
 
             mergeData(serverData, localData) {
                 if (!localData) return serverData;
-                const merged = { ...serverData };
                 
+                // Crear una copia profunda para evitar mutaciones
+                const merged = JSON.parse(JSON.stringify(serverData));
+                
+                // PRESERVAR EL TOKEN ACTUAL
+                const currentToken = this.githubToken || 
+                                   localStorage.getItem('teslacommerce_github_token') || 
+                                   (localData.config && localData.config.github_token);
+                
+                // Preservar configuración local importante
+                const localGistUrl = localStorage.getItem('teslacommerce_gist_url');
+                
+                // Merge de productos - priorizar stock local pero mantener otros datos del servidor
                 const allProducts = [...serverData.products];
                 localData.products.forEach(localProduct => {
                     const existingIndex = allProducts.findIndex(p => p.id === localProduct.id);
-                    if (existingIndex === -1) allProducts.push(localProduct);
-                    else allProducts[existingIndex].stock = localProduct.stock;
+                    if (existingIndex === -1) {
+                        allProducts.push(localProduct);
+                    } else {
+                        // Mantener datos del servidor pero preservar stock local
+                        allProducts[existingIndex] = { 
+                            ...allProducts[existingIndex], 
+                            stock: localProduct.stock 
+                        };
+                    }
                 });
                 merged.products = allProducts;
                 
+                // Merge de usuarios - evitar duplicados
                 const allUsers = [...serverData.users];
                 localData.users.forEach(localUser => {
-                    if (!allUsers.find(u => u.email === localUser.email)) allUsers.push(localUser);
+                    if (!allUsers.find(u => u.email === localUser.email)) {
+                        allUsers.push(localUser);
+                    }
                 });
                 merged.users = allUsers;
                 
+                // Merge de órdenes - el servidor tiene prioridad
                 merged.orders = serverData.orders || localData.orders || [];
                 
+                // Configuración - preservar token y URLs locales
                 if (!merged.config) merged.config = {};
-                if (localData.config) Object.keys(localData.config).forEach(key => {
-                    if (!merged.config[key]) merged.config[key] = localData.config[key];
+                
+                // Preservar configuración importante del servidor
+                Object.keys(serverData.config || {}).forEach(key => {
+                    if (key !== 'github_token') { // No sobrescribir token del servidor
+                        merged.config[key] = serverData.config[key];
+                    }
                 });
                 
+                // Añadir configuración local que no existe en el servidor
+                Object.keys(localData.config || {}).forEach(key => {
+                    if (!merged.config[key]) {
+                        merged.config[key] = localData.config[key];
+                    }
+                });
+                
+                // SIEMPRE preservar el token actual
+                if (currentToken) {
+                    merged.config.github_token = currentToken;
+                    this.githubToken = currentToken;
+                    localStorage.setItem('teslacommerce_github_token', currentToken);
+                }
+                
+                // Preservar URL del Gist local
+                if (localGistUrl) {
+                    this.gistUrl = localGistUrl;
+                    this.gistId = this.extractGistId(localGistUrl);
+                }
+                
                 return merged;
+            }
+
+            validateAndProtectToken() {
+                const tokenSources = [
+                    this.githubToken,
+                    localStorage.getItem('teslacommerce_github_token'),
+                    window.dbManager.data.config?.github_token
+                ];
+                
+                // Encontrar el primer token válido
+                const validToken = tokenSources.find(token => 
+                    token && token.length > 10 && token.startsWith('ghp_')
+                );
+                
+                if (validToken) {
+                    // Sincronizar el token en todos los lugares
+                    this.githubToken = validToken;
+                    localStorage.setItem('teslacommerce_github_token', validToken);
+                    if (window.dbManager.data.config) {
+                        window.dbManager.data.config.github_token = validToken;
+                    }
+                    window.dbManager.saveToLocalStorage();
+                    return true;
+                }
+                
+                return false;
             }
         }
 
@@ -1563,6 +1643,11 @@
             getConfig() { return this.data.config; }
 
             updateConfig(key, value) {
+                // PROTEGER EL TOKEN - No permitir guardar tokens vacíos
+                if (key === 'github_token' && (!value || value.trim() === '')) {
+                    return false;
+                }
+                
                 if (!this.data.config) this.data.config = {};
                 this.data.config[key] = value;
                 this.saveToLocalStorage();
@@ -2460,8 +2545,16 @@
                 window.productManager = new ProductManager();
                 window.cartManager = new CartManager();
                 window.ordersManager = new OrdersManager();
+                
+                // Validar y proteger el token después de la inicialización
+                if (window.gistSyncManager) {
+                    window.gistSyncManager.validateAndProtectToken();
+                }
+                
                 document.getElementById('gistUrl').value = window.gistSyncManager.gistUrl;
-                if (window.gistSyncManager.githubToken) document.getElementById('githubToken').value = window.gistSyncManager.githubToken;
+                if (window.gistSyncManager.githubToken) {
+                    document.getElementById('githubToken').value = window.gistSyncManager.githubToken;
+                }
             }, 1000);
         });
     </script>
