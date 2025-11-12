@@ -1236,6 +1236,13 @@
                         window.dbManager.data = this.mergeData(remoteData, window.dbManager.data);
                         window.dbManager.saveToLocalStorage();
                         
+                        // Cargar token desde la configuración del Gist si existe
+                        if (remoteData.config && remoteData.config.github_token) {
+                            this.githubToken = remoteData.config.github_token;
+                            localStorage.setItem('teslacommerce_github_token', this.githubToken);
+                            this.updateTokenInUI();
+                        }
+                        
                         // Actualizar UI
                         if (window.productManager) window.productManager.loadProducts();
                         if (window.configManager) window.configManager.loadConfiguration();
@@ -1271,12 +1278,16 @@
                 }
 
                 try {
-                    // Preparar datos para enviar
+                    // Preparar datos para enviar (incluyendo el token en la configuración)
                     const dataToSync = {
                         ...window.dbManager.data,
                         last_sync: new Date().toISOString(),
                         sync_source: window.authManager?.currentUser?.email || 'anonymous'
                     };
+
+                    // Incluir el token en la configuración para que esté disponible en otras instancias
+                    if (!dataToSync.config) dataToSync.config = {};
+                    dataToSync.config.github_token = this.githubToken;
 
                     // Primero obtener el Gist actual para tener el SHA correcto
                     const getResponse = await fetch(`https://api.github.com/gists/${this.gistId}`, {
@@ -1438,6 +1449,13 @@
                     statusElement.textContent = message;
                     statusElement.style.color = type === 'success' ? 'var(--success)' : 
                                               type === 'error' ? 'var(--accent)' : 'var(--secondary)';
+                }
+            }
+
+            updateTokenInUI() {
+                const tokenInput = document.getElementById('githubToken');
+                if (tokenInput && this.githubToken) {
+                    tokenInput.value = this.githubToken;
                 }
             }
 
@@ -1621,7 +1639,8 @@
                         hero_subtitle: "Productos seleccionados usando principios de eficiencia Tesla",
                         credit_card_number: "1234-5678-9012-3456",
                         delivery_price: "5.00",
-                        currency: "$"
+                        currency: "$",
+                        github_token: "" // Nuevo campo para almacenar el token
                     },
                     last_updated: new Date().toISOString()
                 };
@@ -3080,12 +3099,19 @@
                 return;
             }
 
-            // Guardar configuración
+            // Guardar configuración localmente
             localStorage.setItem('teslacommerce_gist_url', gistUrl);
             localStorage.setItem('teslacommerce_github_token', githubToken);
             
-            // Reiniciar sync manager
-            window.gistSyncManager = new GistSyncManager();
+            // Actualizar el token en el GistSyncManager
+            if (window.gistSyncManager) {
+                window.gistSyncManager.githubToken = githubToken;
+                window.gistSyncManager.gistUrl = gistUrl;
+                window.gistSyncManager.gistId = gistId;
+                
+                // Guardar el token en la base de datos para que se sincronice con el Gist
+                window.dbManager.updateConfig('github_token', githubToken);
+            }
             
             alert('✅ Configuración de sincronización guardada');
             
@@ -3140,9 +3166,14 @@
                 window.cartManager = new CartManager();
                 window.ordersManager = new OrdersManager();
                 
-                // Configurar valores por defecto
+                // Configurar valores por defecto en la UI
                 document.getElementById('gistUrl').value = window.gistSyncManager.gistUrl;
-                document.getElementById('githubToken').value = window.gistSyncManager.githubToken;
+                
+                // El token se cargará automáticamente desde el Gist cuando se inicialice
+                // Si hay un token local, se usará temporalmente hasta que se cargue desde el Gist
+                if (window.gistSyncManager.githubToken) {
+                    document.getElementById('githubToken').value = window.gistSyncManager.githubToken;
+                }
             }, 1000);
         });
     </script>
