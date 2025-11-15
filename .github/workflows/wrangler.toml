@@ -1,0 +1,16 @@
+name = "databasecloudflaretienda"    # usa el mismo nombre del Worker si quieres actualizar el existente
+type = "javascript"
+account_id = "<YOUR_ACCOUNT_ID>"     # reemplaza con tu account_id (obtenlo con `npx wrangler whoami`)
+workers_dev = true
+compatibility_date = "2025-01-01"
+
+# Entrada principal (ajusta si tu archivo está en otra ruta)
+main = "workers/index.js"
+
+# Binding a D1 (pon el nombre o el Database ID según lo que uses)
+[d1_databases]
+DB = "<YOUR_D1_DATABASE_NAME_OR_ID>"
+
+# Entornos (opcional)
+[env.production]
+# DB = "<PROD_D1_DB_ID>"
